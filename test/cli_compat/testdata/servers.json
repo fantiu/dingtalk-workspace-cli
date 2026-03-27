@@ -1,0 +1,350 @@
+{
+  "metadata": {"count": 16, "nextCursor": ""},
+  "servers": [
+    {
+      "server": {
+        "name": "AI应用管理",
+        "description": "AI应用创建和管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/aiapp"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1001},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "aiapp", "command": "aiapp", "description": "AI应用管理", "prefixes": ["aiapp"],
+          "toolOverrides": {
+            "create_ai_app": {
+              "cliName": "create",
+              "flags": {
+                "prompt": {"alias": "prompt"},
+                "officialSkillUids": {"alias": "skills", "transform": "csv_to_array"}
+              }
+            },
+            "query_ai_app": {
+              "cliName": "query",
+              "flags": {
+                "taskId": {"alias": "task-id"}
+              }
+            },
+            "modify_ai_app": {
+              "cliName": "modify",
+              "flags": {
+                "prompt": {"alias": "prompt"},
+                "threadId": {"alias": "thread-id"},
+                "officialSkillUids": {"alias": "skills", "transform": "csv_to_array"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "多维表管理",
+        "description": "多维表数据管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/aitable"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1002},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "aitable", "command": "aitable", "description": "多维表管理", "prefixes": ["aitable"],
+          "groups": {"base": {"description": "Base管理"}, "table": {"description": "数据表管理"}, "field": {"description": "字段管理"}, "record": {"description": "记录管理"}, "template": {"description": "模板管理"}},
+          "toolOverrides": {
+            "list_bases": {"cliName": "list", "group": "base"},
+            "search_bases": {"cliName": "search", "group": "base", "flags": {"query": {"alias": "query"}}},
+            "get_base": {"cliName": "get", "group": "base", "flags": {"baseId": {"alias": "base-id"}}},
+            "create_base": {"cliName": "create", "group": "base", "flags": {"baseName": {"alias": "name"}, "templateId": {"alias": "template-id"}}},
+            "update_base": {"cliName": "update", "group": "base", "flags": {"baseId": {"alias": "base-id"}, "newBaseName": {"alias": "name"}, "description": {"alias": "desc"}}},
+            "delete_base": {"cliName": "delete", "group": "base", "isSensitive": true, "flags": {"baseId": {"alias": "base-id"}, "reason": {"alias": "reason"}}},
+            "get_tables": {"cliName": "get", "group": "table", "flags": {"baseId": {"alias": "base-id"}, "tableIds": {"alias": "table-ids", "transform": "csv_to_array"}}},
+            "create_table": {"cliName": "create", "group": "table", "flags": {"baseId": {"alias": "base-id"}, "tableName": {"alias": "name"}, "fields": {"alias": "fields", "transform": "json_parse"}}},
+            "update_table": {"cliName": "update", "group": "table", "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "newTableName": {"alias": "name"}}},
+            "delete_table": {"cliName": "delete", "group": "table", "isSensitive": true, "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "reason": {"alias": "reason"}}},
+            "get_fields": {"cliName": "get", "group": "field", "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "fieldIds": {"alias": "field-ids", "transform": "csv_to_array"}}},
+            "create_fields": {"cliName": "create", "group": "field", "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "fields": {"alias": "fields", "transform": "json_parse"}}},
+            "update_field": {"cliName": "update", "group": "field", "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "fieldId": {"alias": "field-id"}, "newFieldName": {"alias": "name"}, "config": {"alias": "config", "transform": "json_parse"}}},
+            "delete_field": {"cliName": "delete", "group": "field", "isSensitive": true, "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "fieldId": {"alias": "field-id"}}},
+            "query_records": {"cliName": "query", "group": "record", "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "recordIds": {"alias": "record-ids", "transform": "csv_to_array"}}},
+            "create_records": {"cliName": "create", "group": "record", "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "records": {"alias": "records", "transform": "json_parse"}}},
+            "update_records": {"cliName": "update", "group": "record", "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "records": {"alias": "records", "transform": "json_parse"}}},
+            "delete_records": {"cliName": "delete", "group": "record", "isSensitive": true, "flags": {"baseId": {"alias": "base-id"}, "tableId": {"alias": "table-id"}, "recordIds": {"alias": "record-ids", "transform": "csv_to_array"}}},
+            "search_templates": {"cliName": "search", "group": "template", "flags": {"query": {"alias": "query"}}}
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "日历管理",
+        "description": "日历事件管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/calendar"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1004},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "calendar", "command": "calendar", "description": "日历管理", "prefixes": ["calendar"],
+          "groups": {"event": {"description": "事件管理"}, "busy": {"description": "忙碌状态"}, "participant": {"description": "参与者管理"}, "room": {"description": "会议室管理"}},
+          "toolOverrides": {
+            "list_calendar_events": {"cliName": "list", "group": "event", "flags": {"startTime": {"alias": "start", "transform": "iso8601_to_millis"}, "endTime": {"alias": "end", "transform": "iso8601_to_millis"}}},
+            "get_calendar_detail": {"cliName": "get", "group": "event", "flags": {"eventId": {"alias": "id"}}},
+            "create_calendar_event": {"cliName": "create", "group": "event", "flags": {"summary": {"alias": "title"}, "startDateTime": {"alias": "start"}, "endDateTime": {"alias": "end"}, "description": {"alias": "desc"}}},
+            "update_calendar_event": {"cliName": "update", "group": "event", "flags": {"eventId": {"alias": "id"}, "summary": {"alias": "title"}, "startDateTime": {"alias": "start"}, "endDateTime": {"alias": "end"}}},
+            "delete_calendar_event": {"cliName": "delete", "group": "event", "isSensitive": true, "flags": {"eventId": {"alias": "id"}}},
+            "query_busy_status": {"cliName": "search", "group": "busy", "flags": {"userIds": {"alias": "users", "transform": "csv_to_array"}, "startTime": {"alias": "start", "transform": "iso8601_to_millis"}, "endTime": {"alias": "end", "transform": "iso8601_to_millis"}}},
+            "add_calendar_participant": {"cliName": "add", "group": "participant", "flags": {"eventId": {"alias": "event"}, "attendeesToAdd": {"alias": "users", "transform": "csv_to_array"}}},
+            "get_calendar_participants": {"cliName": "list", "group": "participant", "flags": {"eventId": {"alias": "event"}}},
+            "query_available_meeting_room": {"cliName": "search", "group": "room", "flags": {"startTime": {"alias": "start", "transform": "iso8601_to_millis"}, "endTime": {"alias": "end", "transform": "iso8601_to_millis"}, "groupId": {"alias": "group-id"}}},
+            "add_meeting_room": {"cliName": "add", "group": "room", "flags": {"eventId": {"alias": "event"}, "roomIds": {"alias": "rooms", "transform": "csv_to_array"}}},
+            "list_meeting_room_groups": {"cliName": "list-groups", "group": "room"}
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "考勤管理",
+        "description": "考勤记录管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/attendance"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1003},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "attendance", "command": "attendance", "description": "考勤管理", "prefixes": ["attendance"],
+          "groups": {"record": {"description": "考勤记录"}, "shift": {"description": "排班管理"}},
+          "toolOverrides": {
+            "get_user_attendance_record": {"cliName": "get", "group": "record", "flags": {"userId": {"alias": "user"}, "workDate": {"alias": "date"}}},
+            "batch_get_employee_shifts": {"cliName": "list", "group": "shift", "flags": {"userIds": {"alias": "users", "transform": "csv_to_array"}, "fromDateTime": {"alias": "start"}, "toDateTime": {"alias": "end"}}},
+            "get_attendance_summary": {"cliName": "summary", "flags": {"QueryUserAttendVO.userId": {"alias": "user"}, "QueryUserAttendVO.queryDate": {"alias": "date"}}},
+            "query_attendance_group_or_rules": {"cliName": "rules", "flags": {"date": {"alias": "date"}}}
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "DING消息",
+        "description": "DING消息发送",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/ding"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1008},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "ding", "command": "ding", "description": "DING消息", "prefixes": ["ding"],
+          "groups": {"message": {"description": "消息管理"}},
+          "toolOverrides": {
+            "send_ding_message": {
+              "cliName": "send", "group": "message",
+              "flags": {
+                "robotCode": {"alias": "robot-code"},
+                "receiverUserIdList": {"alias": "users", "transform": "csv_to_array"},
+                "content": {"alias": "content"},
+                "remindType": {"alias": "type", "transform": "enum_map", "transformArgs": {"app": 1, "sms": 2, "call": 3, "_default": 1}}
+              }
+            },
+            "recall_ding_message": {
+              "cliName": "recall", "group": "message",
+              "flags": {
+                "robotCode": {"alias": "robot-code"},
+                "openDingId": {"alias": "id"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "会议管理",
+        "description": "视频会议管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/conference"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1005},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "conference", "command": "conference", "description": "会议管理", "prefixes": ["conference"],
+          "groups": {"meeting": {"description": "会议"}},
+          "toolOverrides": {"create_meeting_reservation": {"cliName": "create", "group": "meeting", "flags": {"title": {"alias": "title"}, "startTime": {"alias": "start", "transform": "iso8601_to_millis"}, "endTime": {"alias": "end", "transform": "iso8601_to_millis"}}}}
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "通讯录管理",
+        "description": "企业通讯录管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/contact"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1006},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "contact", "command": "contact", "description": "通讯录管理", "prefixes": ["contact"],
+          "groups": {"dept": {"description": "部门管理"}, "user": {"description": "用户管理"}},
+          "toolOverrides": {
+            "get_sub_depts_by_dept_id": {"cliName": "list-children", "group": "dept", "flags": {"deptId": {"alias": "id"}}},
+            "get_dept_members_by_deptId": {"cliName": "list-members", "group": "dept", "flags": {"deptIds": {"alias": "ids", "transform": "csv_to_array"}}},
+            "search_dept_by_keyword": {"cliName": "search", "group": "dept", "flags": {"query": {"alias": "keyword"}}},
+            "get_user_info_by_user_ids": {"cliName": "get", "group": "user", "flags": {"user_id_list": {"alias": "ids", "transform": "csv_to_array"}}},
+            "get_current_user_profile": {"cliName": "get-self", "group": "user"},
+            "search_user_by_key_word": {"cliName": "search", "group": "user", "flags": {"keyWord": {"alias": "keyword"}}},
+            "search_user_by_mobile": {"cliName": "search-mobile", "group": "user", "flags": {"mobile": {"alias": "mobile"}}}
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "开发文档",
+        "description": "开发文档搜索",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/devdoc"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1007},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "devdoc", "command": "devdoc", "description": "开发文档", "prefixes": ["devdoc"],
+          "groups": {"article": {"description": "文章"}},
+          "toolOverrides": {"search_open_platform_docs": {"cliName": "search", "group": "article", "flags": {"keyword": {"alias": "keyword"}, "page": {"alias": "page"}, "size": {"alias": "size"}}}}
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "法务咨询",
+        "description": "法务咨询服务",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/law"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1009},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "law", "command": "law", "description": "法务咨询", "prefixes": ["law"],
+          "toolOverrides": {"consult_law": {"cliName": "consult", "flags": {"query": {"alias": "query"}}}}
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "直播管理",
+        "description": "直播流管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/live"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1010},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "live", "command": "live", "description": "直播管理", "prefixes": ["live"],
+          "groups": {"stream": {"description": "直播流"}},
+          "toolOverrides": {"get_my_lives": {"cliName": "list", "group": "stream"}}
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "OA审批",
+        "description": "OA审批管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/oa"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1011},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "oa", "command": "oa", "description": "OA审批", "prefixes": ["oa"],
+          "groups": {"approval": {"description": "审批"}},
+          "toolOverrides": {"list_pending_approvals": {"cliName": "list-pending", "group": "approval", "flags": {"starTime": {"alias": "start", "transform": "iso8601_to_millis"}, "endTime": {"alias": "end", "transform": "iso8601_to_millis"}}}}
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "日志管理",
+        "description": "日志报告管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/report"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1012},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "report", "command": "report", "description": "日志管理", "prefixes": ["report"],
+          "groups": {"template": {"description": "模板"}},
+          "toolOverrides": {
+            "get_report_detail": {"cliName": "detail"},
+            "list_report_templates": {"cliName": "list", "group": "template"},
+            "get_report_template_detail": {"cliName": "detail", "group": "template"}
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "Teambition项目管理",
+        "description": "Teambition项目管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/teambition"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1013},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "teambition", "command": "tb", "description": "Teambition项目管理", "prefixes": ["tb", "teambition"],
+          "aliases": ["teambition"],
+          "groups": {"project": {"description": "项目管理"}, "task": {"description": "任务管理"}, "worktime": {"description": "工时管理"}},
+          "toolOverrides": {
+            "list_projects": {"cliName": "list", "group": "project"},
+            "list_my_projects": {"cliName": "list-mine", "group": "project"},
+            "create_project": {"cliName": "create", "group": "project"},
+            "update_project": {"cliName": "update", "group": "project"},
+            "list_project_members": {"cliName": "list-members", "group": "project"},
+            "add_project_member": {"cliName": "add-member", "group": "project"},
+            "list_project_priorities": {"cliName": "list-priorities", "group": "project"},
+            "list_project_task_types": {"cliName": "list-task-types", "group": "project"},
+            "list_project_workflow": {"cliName": "list-workflow", "group": "project"},
+            "create_task": {"cliName": "create", "group": "task"},
+            "search_tasks": {"cliName": "search", "group": "task"},
+            "list_worktimes": {"cliName": "list", "group": "worktime"},
+            "create_worktime": {"cliName": "create", "group": "worktime"},
+            "update_worktime": {"cliName": "update", "group": "worktime"}
+          }
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "待办管理",
+        "description": "待办任务管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/todo"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1014},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "todo", "command": "todo", "description": "待办管理", "prefixes": ["todo"],
+          "groups": {"task": {"description": "任务"}},
+          "toolOverrides": {"create_todo_task": {"cliName": "create", "group": "task"}}
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "工作台管理",
+        "description": "工作台应用管理",
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        "remotes": [{"type": "streamable-http", "url": "https://example.com/server/workbench"}]
+      },
+      "_meta": {
+        "com.dingtalk.mcp.registry/metadata": {"isLatest": true, "status": "active", "mcpId": 1015},
+        "com.dingtalk.mcp.registry/cli": {
+          "id": "workbench", "command": "workbench", "description": "工作台管理", "prefixes": ["workbench"],
+          "groups": {"app": {"description": "应用"}},
+          "toolOverrides": {
+            "list_apps": {"cliName": "list", "group": "app"},
+            "get_app": {"cliName": "get", "group": "app"}
+          }
+        }
+      }
+    }
+  ]
+}
