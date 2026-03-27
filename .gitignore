@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+.pytest_cache/
+.venv*/
+*.pyc
+*.pyo
+
+# Build outputs
+dist/
+.tmp-bin/
+dws
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment & Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials*
+
+# Test artifacts
+*.log
+coverage/
+test/cli/testdata/
+test/cli_compat/testdata/
+
+# Local working directories
+.worktrees/
+.agents/
+var/
+
+# Node (if applicable)
+node_modules/
+npm-debug.log*
+
+# Plans (local design docs)
+docs/plans/
+
+# Claude
+/CLAUDE.md
+/.claude/
