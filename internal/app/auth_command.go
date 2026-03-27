@@ -15,7 +15,9 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,8 +61,23 @@ func buildAuthCommand() *cobra.Command {
 
 func newAuthLoginCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "login",
-		Short:             "登录钉钉（自动刷新 token，必要时扫码）",
+		Use:   "login",
+		Short: "登录钉钉（自动刷新 token，必要时扫码）",
+		Long: `登录钉钉并获取认证凭证。
+
+支持的登录方式:
+  - OAuth 设备流 (默认): 通过钉钉扫码授权登录
+  - 直接提供 Token: 通过 --token 参数传入已有 token
+
+不支持的登录方式:
+  - 邮箱/密码登录
+  - 手机号/验证码登录
+  - 应用凭证 (AppKey/AppSecret) 直接登录
+
+示例:
+  dws auth login              # 扫码登录
+  dws auth login --force      # 强制重新登录 (忽略缓存 token)
+  dws auth login --token xxx  # 使用指定 token`,
 		DisableAutoGenTag: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := resolveAuthLoginConfig(cmd)
@@ -176,29 +193,37 @@ func newAuthStatusCommand() *cobra.Command {
 			configDir := defaultConfigDir()
 
 			authenticated := false
-			updatedAt := ""
 			refreshed := false
+			var tokenData *authpkg.TokenData
 			provider := authpkg.NewOAuthProvider(configDir, nil)
 			configureOAuthProviderCompatibility(provider, configDir)
 			if data, err := provider.Status(); err == nil {
+				tokenData = data
 				if !data.IsAccessTokenValid() && data.IsRefreshTokenValid() {
 					refreshCtx, cancel := context.WithTimeout(cmd.Context(), 15*time.Second)
 					_, refreshErr := provider.GetAccessToken(refreshCtx)
 					cancel()
 					if refreshErr == nil {
 						if updatedData, statusErr := provider.Status(); statusErr == nil {
-							data = updatedData
+							tokenData = updatedData
 							refreshed = true
 						}
 					}
 				}
-				if authStatusAuthenticated(data) {
+				if authStatusAuthenticated(tokenData) {
 					authenticated = true
-					updatedAt = authStatusUpdatedAt(data)
 				}
 			}
 
 			w := cmd.OutOrStdout()
+
+			// Check if JSON output is requested
+			format, _ := cmd.Root().PersistentFlags().GetString("format")
+			if strings.EqualFold(strings.TrimSpace(format), "json") {
+				return writeAuthStatusJSON(w, authenticated, refreshed, tokenData)
+			}
+
+			// Default table output
 			if authenticated {
 				if refreshed {
 					fmt.Fprintf(w, "%-16s%s\n", "状态:", "已登录 ✅")
@@ -206,7 +231,7 @@ func newAuthStatusCommand() *cobra.Command {
 				} else {
 					fmt.Fprintf(w, "%-16s%s\n", "状态:", "已登录 ✅")
 				}
-				if updatedAt != "" {
+				if updatedAt := authStatusUpdatedAt(tokenData); updatedAt != "" {
 					fmt.Fprintf(w, "%-16s%s\n", "有效期:", updatedAt)
 				}
 			} else {
@@ -216,6 +241,51 @@ func newAuthStatusCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// authStatusResponse is the JSON response for auth status command.
+type authStatusResponse struct {
+	Success           bool   `json:"success"`
+	Authenticated     bool   `json:"authenticated"`
+	Message           string `json:"message,omitempty"`
+	Refreshed         bool   `json:"refreshed,omitempty"`
+	TokenValid        bool   `json:"token_valid,omitempty"`
+	RefreshTokenValid bool   `json:"refresh_token_valid,omitempty"`
+	ExpiresAt         string `json:"expires_at,omitempty"`
+	RefreshExpiresAt  string `json:"refresh_expires_at,omitempty"`
+	CorpID            string `json:"corp_id,omitempty"`
+	CorpName          string `json:"corp_name,omitempty"`
+	UserID            string `json:"user_id,omitempty"`
+	UserName          string `json:"user_name,omitempty"`
+}
+
+func writeAuthStatusJSON(w io.Writer, authenticated, refreshed bool, data *authpkg.TokenData) error {
+	resp := authStatusResponse{
+		Success:       true,
+		Authenticated: authenticated,
+	}
+
+	if !authenticated {
+		resp.Message = "未登录"
+	} else if data != nil {
+		resp.Refreshed = refreshed
+		resp.TokenValid = data.IsAccessTokenValid()
+		resp.RefreshTokenValid = data.IsRefreshTokenValid()
+		if !data.ExpiresAt.IsZero() {
+			resp.ExpiresAt = data.ExpiresAt.Format(time.RFC3339Nano)
+		}
+		if !data.RefreshExpAt.IsZero() {
+			resp.RefreshExpiresAt = data.RefreshExpAt.Format(time.RFC3339Nano)
+		}
+		resp.CorpID = data.CorpID
+		resp.CorpName = data.CorpName
+		resp.UserID = data.UserID
+		resp.UserName = data.UserName
+	}
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(resp)
 }
 
 func newAuthImportCommand() *cobra.Command {
