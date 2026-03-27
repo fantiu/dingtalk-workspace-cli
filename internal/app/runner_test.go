@@ -628,7 +628,7 @@ func TestRuntimeRunnerReturnsErrorWhenMCPIsErrorTrue(t *testing.T) {
 	cmd := NewRootCommand()
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
-	cmd.SetArgs([]string{"mcp", "doc", "search_documents", "--json", `{"keyword":"design"}`})
+	cmd.SetArgs([]string{"mcp", "doc", "search_documents", "--json", `{"keyword":"design"}`, "--token", "test-token"})
 
 	err := cmd.Execute()
 	if err == nil {

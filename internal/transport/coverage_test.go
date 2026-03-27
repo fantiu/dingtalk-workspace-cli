@@ -36,6 +36,7 @@ func TestNotifyInitialized(t *testing.T) {
 	})
 	c := NewClient(srv.Client())
 	c.TrustedDomains = []string{"*"}
+	c.AuthToken = "test-token"
 	err := c.NotifyInitialized(context.Background(), srv.URL)
 	if err != nil {
 		t.Fatalf("NotifyInitialized error: %v", err)
@@ -51,6 +52,7 @@ func TestListTools_Success(t *testing.T) {
 	})
 	c := NewClient(srv.Client())
 	c.TrustedDomains = []string{"*"}
+	c.AuthToken = "test-token"
 	result, err := c.ListTools(context.Background(), srv.URL)
 	if err != nil {
 		t.Fatalf("ListTools error: %v", err)
@@ -66,6 +68,7 @@ func TestListTools_RPCError(t *testing.T) {
 	})
 	c := NewClient(srv.Client())
 	c.TrustedDomains = []string{"*"}
+	c.AuthToken = "test-token"
 	_, err := c.ListTools(context.Background(), srv.URL)
 	if err == nil {
 		t.Fatal("expected error for RPC error response")
@@ -83,6 +86,7 @@ func TestCallTool_Success(t *testing.T) {
 	})
 	c := NewClient(srv.Client())
 	c.TrustedDomains = []string{"*"}
+	c.AuthToken = "test-token"
 	result, err := c.CallTool(context.Background(), srv.URL, "test-tool", map[string]any{"key": "val"})
 	if err != nil {
 		t.Fatalf("CallTool error: %v", err)
@@ -98,6 +102,7 @@ func TestCallTool_InvalidParams(t *testing.T) {
 	})
 	c := NewClient(srv.Client())
 	c.TrustedDomains = []string{"*"}
+	c.AuthToken = "test-token"
 	_, err := c.CallTool(context.Background(), srv.URL, "test-tool", nil)
 	if err == nil {
 		t.Fatal("expected error")
@@ -272,6 +277,7 @@ func TestCallTool_RetriesOn502(t *testing.T) {
 	})
 	c := NewClient(srv.Client())
 	c.TrustedDomains = []string{"*"}
+	c.AuthToken = "test-token"
 	c.MaxRetries = 3
 	c.RetryDelay = time.Millisecond
 	c.RetryMaxDelay = 10 * time.Millisecond

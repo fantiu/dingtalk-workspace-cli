@@ -373,11 +373,21 @@ func (c *Client) doWithRetry(ctx context.Context, endpoint string, body []byte) 
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
-		if token := sanitizeBearerToken(c.AuthToken); token != "" {
-			if c.isEndpointTrusted(endpoint) {
-				req.Header.Set("Authorization", "Bearer "+token)
-				req.Header.Set("x-user-access-token", token)
+		if c.isEndpointTrusted(endpoint) {
+			token := sanitizeBearerToken(c.AuthToken)
+			if token == "" {
+				// Token acquisition failed — return error immediately instead of
+				// sending an unauthenticated request that would produce a confusing
+				// "Missing service_id or access_key" error from the gateway.
+				return nil, apperrors.NewAuth(
+					"获取认证信息失败: token 为空",
+					apperrors.WithOperation("jsonrpc"),
+					apperrors.WithReason("auth_token_missing"),
+					apperrors.WithHint(i18n.T("请先运行 'dws auth login' 进行登录认证。")),
+				)
 			}
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("x-user-access-token", token)
 		}
 		for key, value := range c.ExtraHeaders {
 			if key != "" && value != "" {
