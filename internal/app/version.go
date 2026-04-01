@@ -13,7 +13,7 @@
 
 package app
 
-var version = "v1.0.6"
+var version = "dev"
 
 // SetVersion overrides the version, build time and git commit strings.
 // Called by pkg/cli.SetVersion for overlay modules that inject their own
