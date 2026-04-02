@@ -9,16 +9,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 // ReplaceSelf atomically replaces the currently running binary with newBinaryPath.
-// Strategy:
-//  1. Resolve current exe path (follow symlinks)
-//  2. Set correct permissions (0755) on new binary
-//  3. Try atomic os.Rename (same filesystem, instant swap)
-//  4. Fallback to copy for cross-device or Windows locks
-//  5. Sync to disk for durability
+//
+// On Unix (macOS / Linux):
+//  1. Try atomic os.Rename (same filesystem, instant swap)
+//  2. Fallback to copy if cross-device
+//
+// On Windows the running .exe is locked by the OS, so direct overwrite fails.
+// Strategy: rename running exe → .old, then rename/copy new binary in, then
+// clean up .old (best-effort, may be cleaned on next run).
 func ReplaceSelf(newBinaryPath string) error {
 	currentExe, err := os.Executable()
 	if err != nil {
@@ -33,14 +36,68 @@ func ReplaceSelf(newBinaryPath string) error {
 		return fmt.Errorf("设置权限失败: %w", err)
 	}
 
-	if err := os.Rename(newBinaryPath, currentExe); err != nil {
-		if err := copyFile(newBinaryPath, currentExe, filePermBinary); err != nil {
-			return err
-		}
+	if err := replaceExeFile(newBinaryPath, currentExe); err != nil {
+		return err
 	}
 
 	syncParentDir(currentExe)
 	return nil
+}
+
+// replaceExeFile replaces dst with src, handling Windows file-lock semantics.
+func replaceExeFile(src, dst string) error {
+	// Fast path: atomic rename (works on Unix same-filesystem, or Windows when dst is unlocked)
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+
+	if runtime.GOOS == "windows" {
+		return windowsReplace(src, dst)
+	}
+
+	// Unix cross-device fallback
+	return copyFile(src, dst, filePermBinary)
+}
+
+// windowsReplace handles the Windows-specific case where the running exe is locked.
+// Windows allows renaming a running executable but not overwriting it.
+func windowsReplace(src, dst string) error {
+	oldPath := dst + ".old"
+
+	// Clean up leftover .old from a previous upgrade
+	os.Remove(oldPath)
+
+	// Move the running (locked) binary out of the way
+	if err := os.Rename(dst, oldPath); err != nil {
+		return fmt.Errorf("无法移动正在运行的二进制文件: %w", err)
+	}
+
+	// Place the new binary at the target path
+	if err := os.Rename(src, dst); err != nil {
+		// Cross-device fallback
+		if cpErr := copyFile(src, dst, filePermBinary); cpErr != nil {
+			// Attempt to restore the original
+			os.Rename(oldPath, dst)
+			return fmt.Errorf("替换失败: %w", cpErr)
+		}
+	}
+
+	// Best-effort cleanup; the .old file may still be locked and will be
+	// removed on the next upgrade or reboot.
+	os.Remove(oldPath)
+	return nil
+}
+
+// CleanupStaleFiles removes leftover .old and .rollback-tmp files from
+// previous upgrades (relevant on Windows where locked files cannot be
+// deleted immediately).
+func CleanupStaleFiles() {
+	exe, err := CurrentBinaryPath()
+	if err != nil {
+		return
+	}
+	os.Remove(exe + ".old")
+	os.Remove(exe + ".rollback-tmp")
 }
 
 // ExtractZip unzips zipPath contents into targetDir.

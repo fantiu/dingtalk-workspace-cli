@@ -4,6 +4,7 @@
 package upgrade
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -42,6 +43,50 @@ var skillDirBlacklist = []string{
 	".real",
 }
 
+// SkillDirStatus describes the installation outcome for a single skill directory.
+type SkillDirStatus int
+
+const (
+	SkillDirOK          SkillDirStatus = iota // successfully installed
+	SkillDirSkipped                           // agent not detected, directory skipped
+	SkillDirBlacklisted                       // blacklisted, never touched
+	SkillDirFailed                            // installation attempted but failed
+)
+
+// SkillDirResult holds the per-directory install result.
+type SkillDirResult struct {
+	Dir    string         // destination directory (e.g. ~/.claude/skills/dws)
+	Status SkillDirStatus // outcome
+	Err    error          // non-nil when Status == SkillDirFailed
+}
+
+// SkillUpgradeResult aggregates the outcome of an UpgradeSkillLocations call.
+type SkillUpgradeResult struct {
+	Results []SkillDirResult
+}
+
+// Succeeded returns directories that were successfully updated.
+func (r *SkillUpgradeResult) Succeeded() []SkillDirResult {
+	var out []SkillDirResult
+	for _, d := range r.Results {
+		if d.Status == SkillDirOK {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// Failed returns directories where installation was attempted but failed.
+func (r *SkillUpgradeResult) Failed() []SkillDirResult {
+	var out []SkillDirResult
+	for _, d := range r.Results {
+		if d.Status == SkillDirFailed {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // UpgradeSkillLocations installs skills from extractedDir into all locations
 // where they are currently installed or expected.
 //
@@ -51,49 +96,60 @@ var skillDirBlacklist = []string{
 //     directory exists (e.g. ~/.claude/ exists => user has Claude)
 //   - ~/.real/ and other blacklisted paths are NEVER touched
 //   - If no location was updated at all, fall back to ~/.agents/skills/dws/
-//
-// Returns the list of directories that were updated.
-func UpgradeSkillLocations(extractedDir string) ([]string, error) {
+func UpgradeSkillLocations(extractedDir string) (*SkillUpgradeResult, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
 
-	var updated []string
+	result := &SkillUpgradeResult{}
+
 	for i, agentDir := range knownSkillDirs {
+		destDir := filepath.Join(homeDir, agentDir, "dws")
+
 		if isBlacklisted(agentDir) {
+			result.Results = append(result.Results, SkillDirResult{Dir: destDir, Status: SkillDirBlacklisted})
 			continue
 		}
 
-		destDir := filepath.Join(homeDir, agentDir, "dws")
-
 		if i > 0 {
-			// For non-primary dirs, only update when the agent's parent dir exists.
-			// e.g. for ".claude/skills", check if ~/.claude exists.
 			parentGate := filepath.Dir(filepath.Join(homeDir, agentDir))
 			if _, err := os.Stat(parentGate); os.IsNotExist(err) {
+				result.Results = append(result.Results, SkillDirResult{Dir: destDir, Status: SkillDirSkipped})
 				continue
 			}
 		}
 
 		os.RemoveAll(destDir)
 		if err := copyDir(extractedDir, destDir); err != nil {
+			result.Results = append(result.Results, SkillDirResult{Dir: destDir, Status: SkillDirFailed, Err: err})
 			continue
 		}
-		updated = append(updated, destDir)
+		result.Results = append(result.Results, SkillDirResult{Dir: destDir, Status: SkillDirOK})
 	}
 
-	// Fallback: ensure at least one location has skills
-	if len(updated) == 0 {
+	// Fallback: if nothing succeeded, force the primary location
+	if len(result.Succeeded()) == 0 {
 		dest := filepath.Join(homeDir, ".agents", "skills", "dws")
 		os.MkdirAll(filepath.Dir(dest), dirPermShared)
 		if err := copyDir(extractedDir, dest); err != nil {
-			return nil, err
+			return result, fmt.Errorf("所有技能目录安装失败，回退到主目录也失败: %w", err)
 		}
-		updated = append(updated, dest)
+		// Replace the earlier failed entry for this dir (if any) or append a new one
+		replaced := false
+		for idx, r := range result.Results {
+			if r.Dir == dest {
+				result.Results[idx] = SkillDirResult{Dir: dest, Status: SkillDirOK}
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			result.Results = append(result.Results, SkillDirResult{Dir: dest, Status: SkillDirOK})
+		}
 	}
 
-	return updated, nil
+	return result, nil
 }
 
 // LocateSkillMD finds the directory containing SKILL.md in an extracted zip.

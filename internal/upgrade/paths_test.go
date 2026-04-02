@@ -59,58 +59,194 @@ func TestLocateSkillMD(t *testing.T) {
 }
 
 func TestUpgradeSkillLocations(t *testing.T) {
-	// Create a temp skill source
 	skillSrc := t.TempDir()
 	os.WriteFile(filepath.Join(skillSrc, "SKILL.md"), []byte("# test skill"), 0644)
 	os.MkdirAll(filepath.Join(skillSrc, "references"), 0755)
 	os.WriteFile(filepath.Join(skillSrc, "references", "guide.md"), []byte("# guide"), 0644)
 
-	// Test the function installs at least to the primary location
-	updated, err := UpgradeSkillLocations(skillSrc)
+	result, err := UpgradeSkillLocations(skillSrc)
 	if err != nil {
 		t.Fatalf("UpgradeSkillLocations() error = %v", err)
 	}
 
-	if len(updated) == 0 {
-		t.Fatal("UpgradeSkillLocations() returned 0 updated locations")
+	succeeded := result.Succeeded()
+	if len(succeeded) == 0 {
+		t.Fatal("UpgradeSkillLocations() returned 0 succeeded locations")
 	}
 
-	// Verify primary location has the files
 	homeDir, _ := os.UserHomeDir()
 	primaryDest := filepath.Join(homeDir, ".agents", "skills", "dws")
 
 	found := false
-	for _, u := range updated {
-		if u == primaryDest {
+	for _, d := range succeeded {
+		if d.Dir == primaryDest {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("primary location %s not in updated list: %v", primaryDest, updated)
+		dirs := make([]string, len(succeeded))
+		for i, d := range succeeded {
+			dirs[i] = d.Dir
+		}
+		t.Errorf("primary location %s not in succeeded list: %v", primaryDest, dirs)
 	}
 
-	// Verify SKILL.md was copied
 	skillMDPath := filepath.Join(primaryDest, "SKILL.md")
 	if _, err := os.Stat(skillMDPath); os.IsNotExist(err) {
 		t.Errorf("SKILL.md not found at %s", skillMDPath)
 	}
 
-	// Verify references/ was copied
 	guidePath := filepath.Join(primaryDest, "references", "guide.md")
 	if _, err := os.Stat(guidePath); os.IsNotExist(err) {
 		t.Errorf("references/guide.md not found at %s", guidePath)
 	}
 
-	// Cleanup
+	// Verify that failed list is empty for a normal install
+	if len(result.Failed()) != 0 {
+		t.Errorf("expected 0 failures, got %d", len(result.Failed()))
+	}
+
+	// Verify total results contain at least one entry for each known (non-blacklisted) dir
+	if len(result.Results) == 0 {
+		t.Error("expected non-empty Results")
+	}
+
 	os.RemoveAll(primaryDest)
 }
 
 func TestBlacklistPreventsRealDir(t *testing.T) {
-	// Ensure .real is not in knownSkillDirs (it shouldn't be, but verify)
 	for _, dir := range knownSkillDirs {
 		if isBlacklisted(dir) {
 			t.Errorf("knownSkillDirs contains blacklisted entry: %q", dir)
 		}
+	}
+}
+
+func TestSkillUpgradeResult_SucceededAndFailed(t *testing.T) {
+	result := &SkillUpgradeResult{
+		Results: []SkillDirResult{
+			{Dir: "/a", Status: SkillDirOK},
+			{Dir: "/b", Status: SkillDirFailed, Err: os.ErrPermission},
+			{Dir: "/c", Status: SkillDirSkipped},
+			{Dir: "/d", Status: SkillDirBlacklisted},
+			{Dir: "/e", Status: SkillDirOK},
+		},
+	}
+
+	succeeded := result.Succeeded()
+	if len(succeeded) != 2 {
+		t.Errorf("Succeeded() len = %d, want 2", len(succeeded))
+	}
+	if succeeded[0].Dir != "/a" || succeeded[1].Dir != "/e" {
+		t.Errorf("Succeeded() dirs = %v, %v", succeeded[0].Dir, succeeded[1].Dir)
+	}
+
+	failed := result.Failed()
+	if len(failed) != 1 {
+		t.Errorf("Failed() len = %d, want 1", len(failed))
+	}
+	if failed[0].Dir != "/b" {
+		t.Errorf("Failed()[0].Dir = %q, want /b", failed[0].Dir)
+	}
+	if failed[0].Err != os.ErrPermission {
+		t.Errorf("Failed()[0].Err = %v, want ErrPermission", failed[0].Err)
+	}
+}
+
+func TestSkillUpgradeResult_EmptyResults(t *testing.T) {
+	result := &SkillUpgradeResult{}
+	if len(result.Succeeded()) != 0 {
+		t.Error("empty Succeeded should be nil/empty")
+	}
+	if len(result.Failed()) != 0 {
+		t.Error("empty Failed should be nil/empty")
+	}
+}
+
+func TestSkillDirStatusConstants(t *testing.T) {
+	if SkillDirOK != 0 {
+		t.Errorf("SkillDirOK = %d, want 0", SkillDirOK)
+	}
+	if SkillDirSkipped != 1 {
+		t.Errorf("SkillDirSkipped = %d, want 1", SkillDirSkipped)
+	}
+	if SkillDirBlacklisted != 2 {
+		t.Errorf("SkillDirBlacklisted = %d, want 2", SkillDirBlacklisted)
+	}
+	if SkillDirFailed != 3 {
+		t.Errorf("SkillDirFailed = %d, want 3", SkillDirFailed)
+	}
+}
+
+func TestEnsureUpgradeDirectories(t *testing.T) {
+	// This test verifies the structure is correct without actually modifying $HOME
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot get home dir")
+	}
+
+	err = EnsureUpgradeDirectories()
+	if err != nil {
+		t.Fatalf("EnsureUpgradeDirectories() error = %v", err)
+	}
+
+	expectedDirs := []string{
+		filepath.Join(homeDir, ".dws"),
+		filepath.Join(homeDir, ".dws", "data"),
+		filepath.Join(homeDir, ".dws", "data", "backups"),
+		filepath.Join(homeDir, ".dws", "cache"),
+		filepath.Join(homeDir, ".dws", "cache", "downloads"),
+	}
+	for _, d := range expectedDirs {
+		info, err := os.Stat(d)
+		if err != nil {
+			t.Errorf("directory %s should exist: %v", d, err)
+			continue
+		}
+		if !info.IsDir() {
+			t.Errorf("%s should be a directory", d)
+		}
+	}
+}
+
+func TestDownloadCacheDir(t *testing.T) {
+	dir := DownloadCacheDir()
+	if dir == "" {
+		t.Error("DownloadCacheDir() returned empty")
+	}
+	if !filepath.IsAbs(dir) {
+		t.Errorf("DownloadCacheDir() = %q, want absolute path", dir)
+	}
+}
+
+func TestBinaryName(t *testing.T) {
+	name := BinaryName()
+	if name != "dws" && name != "dws.exe" {
+		t.Errorf("BinaryName() = %q, want dws or dws.exe", name)
+	}
+}
+
+func TestLocateSkillMD_NestedBeatsFlat(t *testing.T) {
+	dir := t.TempDir()
+	// Create both flat and nested layouts; nested should take priority
+	os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("flat"), 0644)
+	os.MkdirAll(filepath.Join(dir, "dws"), 0755)
+	os.WriteFile(filepath.Join(dir, "dws", "SKILL.md"), []byte("nested"), 0644)
+
+	result := LocateSkillMD(dir)
+	want := filepath.Join(dir, "dws")
+	if result != want {
+		t.Errorf("LocateSkillMD() = %q, want nested %q", result, want)
+	}
+}
+
+func TestKnownSkillDirsNotEmpty(t *testing.T) {
+	if len(knownSkillDirs) == 0 {
+		t.Error("knownSkillDirs is empty")
+	}
+	// First entry should be the primary location
+	if knownSkillDirs[0] != ".agents/skills" {
+		t.Errorf("first knownSkillDir = %q, want .agents/skills", knownSkillDirs[0])
 	}
 }

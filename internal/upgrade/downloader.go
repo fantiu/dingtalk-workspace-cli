@@ -176,7 +176,7 @@ func isRetriable(err error) bool {
 		return true
 	}
 	errStr := err.Error()
-	for _, pattern := range []string{"connection reset", "connection refused", "timeout", "temporary failure", "EOF"} {
+	for _, pattern := range []string{"connection reset", "connection refused", "timeout", "temporary failure", "eof"} {
 		if strings.Contains(strings.ToLower(errStr), pattern) {
 			return true
 		}

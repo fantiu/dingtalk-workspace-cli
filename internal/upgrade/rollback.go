@@ -114,6 +114,7 @@ func (r *RollbackManager) Rollback() error {
 }
 
 // RollbackTo restores a specific backup.
+// Uses replaceExeFile to handle Windows file-lock semantics correctly.
 func (r *RollbackManager) RollbackTo(backup BackupInfo) error {
 	currentExe, err := os.Executable()
 	if err != nil {
@@ -126,24 +127,21 @@ func (r *RollbackManager) RollbackTo(backup BackupInfo) error {
 
 	binaryBackupPath := backup.BinaryPath
 	if binaryBackupPath == "" {
-		binaryBackupPath = filepath.Join(backup.Path, "binary", "dws")
+		binaryBackupPath = filepath.Join(backup.Path, "binary", BinaryName())
 	}
 
 	if _, err := os.Stat(binaryBackupPath); os.IsNotExist(err) {
 		return fmt.Errorf("备份文件不存在: %s", binaryBackupPath)
 	}
 
-	backupFileInfo, err := os.Stat(binaryBackupPath)
-	if err != nil {
-		return fmt.Errorf("无法读取备份文件信息: %w", err)
+	// Copy backup to a temp file first so replaceExeFile can use rename
+	tmpPath := currentExe + ".rollback-tmp"
+	if err := copyFile(binaryBackupPath, tmpPath, filePermBinary); err != nil {
+		return fmt.Errorf("准备回滚文件失败: %w", err)
 	}
 
-	perm := backupFileInfo.Mode()
-	if perm&0111 == 0 {
-		perm = filePermBinary
-	}
-
-	if err := copyFile(binaryBackupPath, currentExe, perm); err != nil {
+	if err := replaceExeFile(tmpPath, currentExe); err != nil {
+		os.Remove(tmpPath)
 		return fmt.Errorf("恢复二进制失败: %w", err)
 	}
 

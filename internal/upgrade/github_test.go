@@ -228,6 +228,236 @@ func TestRateLimitError(t *testing.T) {
 	}
 }
 
+func TestFetchLatestRelease_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := NewClientWithBaseURL(server.URL)
+	_, err := client.FetchLatestRelease()
+	if err == nil {
+		t.Fatal("expected error for 404")
+	}
+	if !contains(err.Error(), "404") {
+		t.Errorf("error = %q, want to contain '404'", err.Error())
+	}
+}
+
+func TestFetchReleaseByTag_InvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("{invalid json"))
+	}))
+	defer server.Close()
+
+	client := NewClientWithBaseURL(server.URL)
+	_, err := client.FetchReleaseByTag("v1.0.0")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestFetchLatestRelease_FieldMapping(t *testing.T) {
+	release := GitHubRelease{
+		TagName:     "v2.1.0",
+		Body:        "## Changelog\n* abc1234 - add new feature\n* def5678 Merge branch 'main'",
+		Prerelease:  true,
+		PublishedAt: "2026-06-15T14:30:00Z",
+		HTMLURL:     "https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/tag/v2.1.0",
+		Assets:      []GitHubAsset{},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(release)
+	}))
+	defer server.Close()
+
+	client := NewClientWithBaseURL(server.URL)
+	info, err := client.FetchLatestRelease()
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+
+	if info.Version != "2.1.0" {
+		t.Errorf("Version = %q, want %q", info.Version, "2.1.0")
+	}
+	if info.Date != "2026-06-15" {
+		t.Errorf("Date = %q, want %q", info.Date, "2026-06-15")
+	}
+	if !info.Prerelease {
+		t.Error("Prerelease = false, want true")
+	}
+	if info.HTMLURL != release.HTMLURL {
+		t.Errorf("HTMLURL = %q, want %q", info.HTMLURL, release.HTMLURL)
+	}
+	if info.Changelog == "" {
+		t.Error("Changelog should not be empty")
+	}
+}
+
+func TestFetchAllReleases_EmptyList(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode([]GitHubRelease{})
+	}))
+	defer server.Close()
+
+	client := NewClientWithBaseURL(server.URL)
+	versions, err := client.FetchAllReleases()
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if len(versions) != 0 {
+		t.Errorf("len = %d, want 0", len(versions))
+	}
+}
+
+func TestFetchAllReleases_AllDrafts(t *testing.T) {
+	releases := []GitHubRelease{
+		{TagName: "v1.0.0", Draft: true},
+		{TagName: "v0.9.0", Draft: true},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(releases)
+	}))
+	defer server.Close()
+
+	client := NewClientWithBaseURL(server.URL)
+	versions, err := client.FetchAllReleases()
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if len(versions) != 0 {
+		t.Errorf("all-drafts: len = %d, want 0", len(versions))
+	}
+}
+
+func TestFetchReleaseByTag_WithVPrefix(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expected := "/repos/DingTalk-Real-AI/dingtalk-workspace-cli/releases/tags/v1.0.5"
+		if r.URL.Path != expected {
+			t.Errorf("path = %q, want %q", r.URL.Path, expected)
+		}
+		json.NewEncoder(w).Encode(GitHubRelease{TagName: "v1.0.5", PublishedAt: "2026-01-01T00:00:00Z"})
+	}))
+	defer server.Close()
+
+	client := NewClientWithBaseURL(server.URL)
+	info, err := client.FetchReleaseByTag("v1.0.5") // already has "v"
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if info.Version != "1.0.5" {
+		t.Errorf("Version = %q, want %q", info.Version, "1.0.5")
+	}
+}
+
+func TestFindChecksumsAsset_NotFound(t *testing.T) {
+	assets := []GitHubAsset{{Name: "dws-darwin-arm64.tar.gz"}}
+	if got := FindChecksumsAsset(assets); got != nil {
+		t.Errorf("FindChecksumsAsset() = %v, want nil", got)
+	}
+}
+
+func TestFindBinaryAssetFor_EmptyAssets(t *testing.T) {
+	_, err := FindBinaryAssetFor(nil, "darwin", "arm64")
+	if err == nil {
+		t.Error("expected error for empty assets")
+	}
+}
+
+func TestStripV(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"v1.0.0", "1.0.0"},
+		{"1.0.0", "1.0.0"},
+		{"v", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := stripV(tt.in)
+		if got != tt.want {
+			t.Errorf("stripV(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestFormatDate(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"2026-04-01T09:29:05Z", "2026-04-01"},
+		{"invalid-date", "invalid-date"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := formatDate(tt.in)
+		if got != tt.want {
+			t.Errorf("formatDate(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestTruncateBody(t *testing.T) {
+	tests := []struct {
+		body   string
+		maxLen int
+		want   string
+	}{
+		{"short", 100, "short"},
+		{"line1\nline2", 100, "line1"},
+		{"a very long string here", 10, "a very ..."},
+		{"", 10, ""},
+	}
+	for _, tt := range tests {
+		got := truncateBody(tt.body, tt.maxLen)
+		if got != tt.want {
+			t.Errorf("truncateBody(%q, %d) = %q, want %q", tt.body, tt.maxLen, got, tt.want)
+		}
+	}
+}
+
+func TestGithubToken(t *testing.T) {
+	// Clean env first
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+	if got := githubToken(); got != "" {
+		t.Errorf("expected empty token, got %q", got)
+	}
+
+	t.Setenv("GITHUB_TOKEN", "gh-tok-123")
+	if got := githubToken(); got != "gh-tok-123" {
+		t.Errorf("expected gh-tok-123, got %q", got)
+	}
+
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "gh-alt-456")
+	if got := githubToken(); got != "gh-alt-456" {
+		t.Errorf("expected gh-alt-456, got %q", got)
+	}
+}
+
+func TestGetJSON_SetsHeaders(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "test-token-abc")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ua := r.Header.Get("User-Agent"); ua != userAgent {
+			t.Errorf("User-Agent = %q, want %q", ua, userAgent)
+		}
+		if accept := r.Header.Get("Accept"); accept != "application/vnd.github+json" {
+			t.Errorf("Accept = %q, want application/vnd.github+json", accept)
+		}
+		if auth := r.Header.Get("Authorization"); auth != "token test-token-abc" {
+			t.Errorf("Authorization = %q, want %q", auth, "token test-token-abc")
+		}
+		json.NewEncoder(w).Encode(GitHubRelease{TagName: "v1.0.0", PublishedAt: "2026-01-01T00:00:00Z"})
+	}))
+	defer server.Close()
+
+	client := NewClientWithBaseURL(server.URL)
+	_, err := client.FetchLatestRelease()
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

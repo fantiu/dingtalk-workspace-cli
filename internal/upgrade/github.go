@@ -141,7 +141,7 @@ func (c *Client) FetchAllReleases() ([]VersionEntry, error) {
 		versions = append(versions, VersionEntry{
 			Version:    stripV(gh.TagName),
 			Date:       formatDate(gh.PublishedAt),
-			Changelog:  truncateBody(gh.Body, 80),
+			Changelog:  gh.Body,
 			Prerelease: gh.Prerelease,
 		})
 	}
