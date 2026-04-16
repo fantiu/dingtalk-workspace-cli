@@ -361,6 +361,11 @@ func extractPluginZip(zipPath, destDir string) error {
 			return fmt.Errorf("invalid file path in zip: %s", file.Name)
 		}
 
+		// Reject symlinks in ZIP to prevent path traversal attacks.
+		if file.FileInfo().Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlinks are not allowed in plugin zip: %s", file.Name)
+		}
+
 		if file.FileInfo().IsDir() {
 			if err := os.MkdirAll(filePath, 0o755); err != nil {
 				return fmt.Errorf("create directory: %w", err)

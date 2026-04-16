@@ -138,6 +138,4 @@ const (
 // automatically pulled on first run if not already present locally.
 // Each entry is the short plugin name (without the workspace prefix);
 // the full qualified name is OfficialPluginWorkspace + "/" + name.
-var DefaultManagedPlugins = []string{
-	"conference",
-}
+var DefaultManagedPlugins = []string{}

@@ -157,6 +157,10 @@ func validateMCPServer(key string, srv *MCPServer) error {
 		if strings.TrimSpace(srv.Command) == "" {
 			return fmt.Errorf("mcpServers[%q]: stdio requires command", key)
 		}
+		// Reject absolute paths in command to encourage relative paths within plugin root.
+		if filepath.IsAbs(srv.Command) {
+			return fmt.Errorf("mcpServers[%q]: command must be a relative path, got %q", key, srv.Command)
+		}
 	default:
 		return fmt.Errorf("mcpServers[%q]: unsupported type %q (must be streamable-http or stdio)", key, srv.Type)
 	}

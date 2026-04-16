@@ -427,8 +427,15 @@ func (l *Loader) InstallFromGit(gitURL string) (*Plugin, error) {
 
 // parseGitURL extracts workspace and repo name from a git URL.
 // Supports: https://github.com/org/repo.git, git@github.com:org/repo.git
+// Rejects file:// and other local protocols to prevent reading local files.
 func parseGitURL(gitURL string) (workspace, repoName string, err error) {
 	gitURL = strings.TrimSpace(gitURL)
+
+	// Reject dangerous protocols that could read local files.
+	lower := strings.ToLower(gitURL)
+	if strings.HasPrefix(lower, "file://") || strings.HasPrefix(lower, "/") || strings.HasPrefix(lower, ".") {
+		return "", "", fmt.Errorf("local paths and file:// URLs are not allowed: %q", gitURL)
+	}
 
 	// Handle SSH format: git@github.com:org/repo.git
 	if strings.HasPrefix(gitURL, "git@") {
@@ -448,6 +455,11 @@ func parseGitURL(gitURL string) (workspace, repoName string, err error) {
 	u, err := url.Parse(gitURL)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot parse URL %q: %w", gitURL, err)
+	}
+
+	// Only allow https:// and http:// schemes.
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return "", "", fmt.Errorf("unsupported URL scheme %q: only https and ssh are allowed", u.Scheme)
 	}
 
 	path := strings.TrimSuffix(strings.Trim(u.Path, "/"), ".git")
@@ -612,6 +624,19 @@ func (l *Loader) ListPluginConfig(pluginName string) map[string]string {
 //
 // Environment variables already set by the user take precedence — only
 // keys not already present in the environment are injected.
+// dangerousEnvVars contains environment variable names that must never be
+// set from plugin config because they can alter process behavior in
+// security-critical ways (library injection, executable search path, etc.).
+var dangerousEnvVars = map[string]bool{
+	"PATH": true, "HOME": true, "USER": true, "SHELL": true,
+	"LD_PRELOAD": true, "LD_LIBRARY_PATH": true,
+	"DYLD_INSERT_LIBRARIES": true, "DYLD_LIBRARY_PATH": true, "DYLD_FRAMEWORK_PATH": true,
+	"NODE_OPTIONS": true, "PYTHONPATH": true, "RUBYLIB": true,
+	"GOPATH": true, "GOROOT": true,
+	"HTTP_PROXY": true, "HTTPS_PROXY": true, "ALL_PROXY": true, "NO_PROXY": true,
+	"http_proxy": true, "https_proxy": true, "all_proxy": true, "no_proxy": true,
+}
+
 func (l *Loader) InjectPluginConfigEnv() {
 	settings := l.loadSettings()
 	if len(settings.PluginConfigs) == 0 {
@@ -621,6 +646,12 @@ func (l *Loader) InjectPluginConfigEnv() {
 		for key, val := range pluginCfg {
 			strVal, ok := val.(string)
 			if !ok || strVal == "" {
+				continue
+			}
+			// Block dangerous environment variable names.
+			if dangerousEnvVars[key] {
+				slog.Warn("plugin: blocked dangerous env var from config",
+					"key", key)
 				continue
 			}
 			// Do not override existing environment variables.
@@ -759,6 +790,17 @@ func BuildPlugin(pluginDir string) error {
 func runBuild(pluginDir string, build *BuildConfig) error {
 	if build.Command == "" {
 		return fmt.Errorf("build.command is empty")
+	}
+
+	// Validate build.output is a relative path within the plugin directory.
+	if build.Output != "" {
+		if filepath.IsAbs(build.Output) {
+			return fmt.Errorf("build.output must be a relative path, got %q", build.Output)
+		}
+		cleanOut := filepath.Clean(build.Output)
+		if strings.HasPrefix(cleanOut, "..") {
+			return fmt.Errorf("build.output must not escape plugin directory: %q", build.Output)
+		}
 	}
 
 	slog.Info("plugin: building", "dir", pluginDir, "command", build.Command)
