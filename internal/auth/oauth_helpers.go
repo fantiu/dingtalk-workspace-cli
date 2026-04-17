@@ -22,40 +22,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/DingTalk-Real-AI/dingtalk-workspace-cli/pkg/config"
 )
-
-// debugLogMCPRequest logs MCP API request and response to ~/.dws/debug.log for debugging.
-// TODO: Remove before official release.
-func debugLogMCPRequest(endpoint string, headers map[string]string, respStatus int, respBody []byte) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	logPath := filepath.Join(homeDir, ".dws", "debug.log")
-	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
-	fmt.Fprintf(f, "\n========== %s ==========\n", timestamp)
-	fmt.Fprintf(f, "Endpoint: %s\n", endpoint)
-	fmt.Fprintf(f, "Request Headers:\n")
-	for k, v := range headers {
-		if k == "x-user-access-token" && len(v) > 20 {
-			fmt.Fprintf(f, "  %s: %s...%s (len=%d)\n", k, v[:10], v[len(v)-10:], len(v))
-		} else {
-			fmt.Fprintf(f, "  %s: %s\n", k, v)
-		}
-	}
-	fmt.Fprintf(f, "Response Status: %d\n", respStatus)
-	fmt.Fprintf(f, "Response Body:\n%s\n", string(respBody))
-}
 
 func (p *OAuthProvider) exchangeCode(ctx context.Context, code string) (*TokenData, error) {
 	// Use MCP mode if clientID is from MCP server
@@ -1231,22 +1201,14 @@ func (p *OAuthProvider) CheckCLIAuthEnabled(ctx context.Context, accessToken str
 }
 
 func (p *OAuthProvider) doCheckCLIAuthEnabled(ctx context.Context, accessToken string) (*CLIAuthStatus, error) {
-	reqURL := GetMCPBaseURL() + CLIAuthEnabledPath
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	url := GetMCPBaseURL() + CLIAuthEnabledPath
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("x-user-access-token", accessToken)
 	if ch := os.Getenv("DWS_CHANNEL"); ch != "" {
 		req.Header.Set("x-dws-channel", ch)
-	}
-
-	// Collect headers for debug logging
-	debugHeaders := map[string]string{
-		"x-user-access-token": accessToken,
-	}
-	if ch := os.Getenv("DWS_CHANNEL"); ch != "" {
-		debugHeaders["x-dws-channel"] = ch
 	}
 
 	client := p.httpClient
@@ -1263,9 +1225,6 @@ func (p *OAuthProvider) doCheckCLIAuthEnabled(ctx context.Context, accessToken s
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
-
-	// Log request and response for debugging (TODO: remove before release)
-	debugLogMCPRequest(reqURL, debugHeaders, resp.StatusCode, data)
 
 	var status CLIAuthStatus
 	if err := json.Unmarshal(data, &status); err != nil {
