@@ -67,6 +67,7 @@ func Execute() (exitCode int) {
 
 	timing := NewTimingCollector()
 	defer func() {
+		StopAllStdioClients() // Ensure child processes are terminated on exit
 		timing.PrintIfEnabled()
 		timing.WriteReportIfEnabled(RawVersion(), SanitizeCommand(os.Args))
 	}()
@@ -272,6 +273,7 @@ func NewRootCommandWithEngine(rootCtx context.Context, engine *pipeline.Engine) 
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+			StopAllStdioClients()
 			CloseFileLogger()
 			return closeOutputSink(cmd)
 		},
@@ -1427,7 +1429,8 @@ func registerStdioServer(p *plugin.Plugin, sc plugin.StdioServerClient, runner e
 	}
 
 	AppendDynamicServer(descriptor)
-	RegisterStdioClient(serverID, sc.Client)
+	// Register with pluginName/serverKey format for cleanup by plugin name
+	RegisterStdioClient(p.Manifest.Name+"/"+serverID, sc.Client)
 
 	// Convert tool descriptors to DetailTool entries for flag generation.
 	detailsByID := make(map[string][]market.DetailTool)
