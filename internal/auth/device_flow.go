@@ -271,15 +271,18 @@ func (p *DeviceFlowProvider) loginOnce(ctx context.Context, attempt int) (*Token
 		return nil, fmt.Errorf("%s: %w", i18n.T("保存 token 失败"), err)
 	}
 
+	// Persist app credentials (with secret) if using custom client credentials.
+	// MUST run BEFORE os.Setenv below to avoid env-matching short circuit.
+	oauthProvider.persistAppConfigIfNeeded()
+
 	// Always persist clientId to app.json so future process startups
 	// can load it via ResolveAppCredentials and populate DWS_CLIENT_ID env.
 	if p.clientID != "" {
 		_ = os.Setenv("DWS_CLIENT_ID", p.clientID)
-		_ = SaveAppConfig(p.configDir, &AppConfig{ClientID: p.clientID})
+		if !HasAppConfig(p.configDir) {
+			_ = SaveAppConfig(p.configDir, &AppConfig{ClientID: p.clientID})
+		}
 	}
-
-	// Persist app credentials if using custom client credentials
-	oauthProvider.persistAppConfigIfNeeded()
 
 	return tokenData, nil
 }

@@ -106,6 +106,16 @@ const (
 	MCPOAuthTokenPath   = "/oauth2/getToken"
 	MCPRefreshTokenPath = "/oauth2/refreshToken"
 	MCPRevokeTokenPath  = "/oauth2/revokeToken"
+
+	// App-level access token endpoints (for dws api raw calls).
+
+	// AppAccessTokenURL is the new-style app token endpoint.
+	// POST with {"appKey":"X","appSecret":"X"} → {"accessToken":"...","expireIn":7200}
+	AppAccessTokenURL = "https://api.dingtalk.com/v1.0/oauth2/accessToken"
+
+	// LegacyGetTokenURL is the legacy app token endpoint.
+	// GET ?appkey=X&appsecret=X → {"errcode":0,"access_token":"...","expires_in":7200}
+	LegacyGetTokenURL = "https://oapi.dingtalk.com/gettoken"
 )
 
 // GetTerminalBaseURL returns the terminal base URL with priority:
