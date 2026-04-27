@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/DingTalk-Real-AI/dingtalk-workspace-cli/internal/keychain"
@@ -210,7 +211,9 @@ func (p *AppTokenProvider) GetToken(ctx context.Context) (string, error) {
 	// Persist updated token data.
 	if saveErr := SaveAppTokenData(data); saveErr != nil {
 		// Log but don't fail — token is still usable this time.
-		fmt.Printf("Warning: 无法缓存 app token: %v\n", saveErr)
+		// Write to stderr so we don't corrupt stdout JSON output when piped
+		// into jq/grep/etc.
+		fmt.Fprintf(os.Stderr, "Warning: 无法缓存 app token: %v\n", saveErr)
 	}
 
 	return data.AccessToken, nil

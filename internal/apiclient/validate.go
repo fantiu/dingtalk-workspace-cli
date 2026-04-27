@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"unicode"
 )
 
 // AllowedHosts is the set of trusted DingTalk API hosts.
@@ -120,18 +119,13 @@ func isDangerousUnicode(r rune) bool {
 	// Additional Bidi controls
 	case r == 0x061C:
 		return true
-	// Object replacement / annotation chars
-	case r == 0xFFFC || r == 0xFFFD:
-		return false // replacement char is OK
 	// Non-characters
 	case r >= 0xFDD0 && r <= 0xFDEF:
 		return true
-	// Check for non-printable, non-space category (but allow CJK etc.)
-	case !unicode.IsPrint(r) && !unicode.IsSpace(r) && r > 0x7F:
-		// Only block explicit dangerous ranges above; allow CJK and other
-		// legitimate non-ASCII characters through.
-		return false
 	}
+	// Object replacement (U+FFFC) / replacement (U+FFFD) characters and
+	// other non-printable non-ASCII runes (e.g. CJK, symbols) are allowed
+	// through — only the explicit dangerous ranges above are blocked.
 	return false
 }
 
