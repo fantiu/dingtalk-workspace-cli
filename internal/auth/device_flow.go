@@ -161,22 +161,31 @@ func (p *DeviceFlowProvider) resetCredentialState() {
 }
 
 func (p *DeviceFlowProvider) Login(ctx context.Context) (*TokenData, error) {
-	// Defensive reset: clear any stale credential state from previous login
-	// methods (OAuth scan, PAT, etc.) so we always re-fetch from MCP.
-	// This ensures --device login works regardless of what app.json contains.
+	// Defensive reset: clear stale credential state from previous login methods,
+	// but preserve user-provided --client-id if present.
+	userClientID := p.clientID
 	p.resetCredentialState()
 
-	if p.logger != nil {
-		p.logger.Debug("fetching client ID from MCP server (device flow always re-fetches)")
-	}
-	mcpClientID, mcpErr := FetchClientIDFromMCP(ctx)
-	if mcpErr != nil {
-		return nil, fmt.Errorf("%s: %w", i18n.T("获取 Client ID 失败"), mcpErr)
-	}
-	p.clientID = mcpClientID
-	SetClientIDFromMCP(mcpClientID)
-	if p.logger != nil {
-		p.logger.Debug("fetched client ID from MCP server", "clientID", mcpClientID)
+	if userClientID != "" && userClientID != DefaultClientID {
+		// User provided --client-id flag: use it directly, skip MCP fetch.
+		p.clientID = userClientID
+		if p.logger != nil {
+			p.logger.Debug("using user-provided client ID, skipping MCP fetch", "clientID", userClientID)
+		}
+	} else {
+		// No user-provided client ID: fetch from MCP server.
+		if p.logger != nil {
+			p.logger.Debug("fetching client ID from MCP server")
+		}
+		mcpClientID, mcpErr := FetchClientIDFromMCP(ctx)
+		if mcpErr != nil {
+			return nil, fmt.Errorf("%s: %w", i18n.T("获取 Client ID 失败"), mcpErr)
+		}
+		p.clientID = mcpClientID
+		SetClientIDFromMCP(mcpClientID)
+		if p.logger != nil {
+			p.logger.Debug("fetched client ID from MCP server", "clientID", mcpClientID)
+		}
 	}
 
 	const maxAttempts = 3
@@ -305,15 +314,18 @@ func (p *DeviceFlowProvider) loginOnce(ctx context.Context, attempt int) (*Token
 		return nil, fmt.Errorf("%s: %w", i18n.T("保存 token 失败"), err)
 	}
 
+	// Persist app credentials (with secret) if using custom client credentials.
+	// MUST run BEFORE os.Setenv below to avoid env-matching short circuit.
+	oauthProvider.persistAppConfigIfNeeded()
+
 	// Always persist clientId to app.json so future process startups
 	// can load it via ResolveAppCredentials and populate DWS_CLIENT_ID env.
 	if p.clientID != "" {
 		_ = os.Setenv("DWS_CLIENT_ID", p.clientID)
-		_ = SaveAppConfig(p.configDir, &AppConfig{ClientID: p.clientID})
+		if !HasAppConfig(p.configDir) {
+			_ = SaveAppConfig(p.configDir, &AppConfig{ClientID: p.clientID})
+		}
 	}
-
-	// Persist app credentials if using custom client credentials
-	oauthProvider.persistAppConfigIfNeeded()
 
 	return tokenData, nil
 }

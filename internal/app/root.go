@@ -290,6 +290,7 @@ func NewRootCommandWithEngine(rootCtx context.Context, engine *pipeline.Engine) 
 
 	utilityCommands := []*cobra.Command{
 		newAuthCommand(),
+		newAPICommand(flags),
 		newSkillCommand(),
 		newCacheCommand(),
 		newConfigCommand(),
@@ -658,6 +659,7 @@ func hideNonDirectRuntimeCommands(root *cobra.Command) {
 	allowedProducts := resolveVisibleProducts()
 	staticCommands := map[string]bool{
 		"auth":       true,
+		"api":        true,
 		"cache":      true,
 		"config":     true,
 		"doctor":     true,
@@ -689,7 +691,7 @@ func hideNonDirectRuntimeCommands(root *cobra.Command) {
 // not override. This protects core CLI functionality from being hijacked
 // by a malicious or misconfigured plugin.
 var reservedCommands = map[string]bool{
-	"auth": true, "login": true, "logout": true,
+	"auth": true, "api": true, "login": true, "logout": true,
 	"plugin": true, "skill": true, "cache": true,
 	"config": true, "doctor": true, "completion": true,
 	"recovery": true, "upgrade": true, "version": true,
