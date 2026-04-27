@@ -289,8 +289,8 @@ dws auth login --client-id <APP_KEY> --client-secret <APP_SECRET>
 
 # === api.dingtalk.com ===
 
-# Get current user info
-dws api GET /v1.0/contact/users/me
+# List all enterprise apps
+dws api GET /v1.0/microApp/allApps
 
 # Search users (POST + JSON body)
 dws api POST /v1.0/contact/users/search \
@@ -301,16 +301,16 @@ dws api POST /v1.0/contact/users/search \
 # Get user details (use --base-url to specify domain)
 dws api POST /topapi/v2/user/get \
   --base-url https://oapi.dingtalk.com \
-  --data '{"userid":"manager123"}'
+  --data '{"userid":"<USER_ID>"}'
 
 # Or use the full URL directly
 dws api POST https://oapi.dingtalk.com/topapi/v2/user/get \
-  --data '{"userid":"manager123"}'
+  --data '{"userid":"<USER_ID>"}'
 
 # === General ===
-dws api GET /v1.0/attendance/groups --page-all   # auto-paginate
-dws api GET /v1.0/contact/users/me --dry-run     # preview request
-dws api GET /v1.0/contact/users/me --jq '.nick'  # jq filtering
+dws api GET /v1.0/microApp/allApps --page-all   # auto-paginate
+dws api GET /v1.0/microApp/allApps --dry-run     # preview request
+dws api GET /v1.0/microApp/allApps --jq '.agentId'  # jq filtering
 ```
 
 | Feature | Details |
@@ -318,7 +318,7 @@ dws api GET /v1.0/contact/users/me --jq '.nick'  # jq filtering
 | Dual-form auto-detection | Automatically selects api.dingtalk.com (header auth) or oapi.dingtalk.com (query-param auth) based on URL |
 | Automatic token management | App-level accessToken is fetched on first call, cached while valid, auto-refreshed on expiry |
 | Domain allowlist | Only `api.dingtalk.com` and `oapi.dingtalk.com` permitted — prevents token leakage |
-| Auto-pagination | `--page-all` iterates all pages; `--page-limit` caps the maximum |
+| Auto-pagination | `--page-all` iterates all pages. `--page-limit` caps the maximum (default 10, set to 0 for unlimited, hard cap at 500 to prevent infinite loops) |
 
 </details>
 

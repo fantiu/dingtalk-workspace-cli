@@ -45,13 +45,13 @@ func newAPICommand(flags *GlobalFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api <METHOD> <PATH> [flags]",
 		Short: "调用钉钉 OpenAPI (Raw HTTP)",
-		Long: `直接调用钉钉 OpenAPI，支持新版和旧版两种 API 形态。
+		Long: `直接调用钉钉 OpenAPI，支持 api.dingtalk.com 和 oapi.dingtalk.com 两个域名。
 
-新版 API (api.dingtalk.com):
+api.dingtalk.com:
   Token 通过 HTTP Header (x-acs-dingtalk-access-token) 传递。
   路径格式: /v1.0/xxx 或 /v2.0/xxx
 
-旧版 API (oapi.dingtalk.com):
+oapi.dingtalk.com:
   Token 通过 URL 查询参数 (access_token) 传递。
   路径格式: /topapi/v2/xxx 或完整 URL https://oapi.dingtalk.com/topapi/...
 
@@ -59,7 +59,7 @@ func newAPICommand(flags *GlobalFlags) *cobra.Command {
 通过 MCP 默认凭证登录获取的加密 token 不支持 raw API 调用。
 
 示例:
-  # === 新版 API (api.dingtalk.com) ===
+  # === api.dingtalk.com ===
 
   # 获取当前用户信息
   dws api GET /v1.0/contact/users/me
@@ -72,9 +72,9 @@ func newAPICommand(flags *GlobalFlags) *cobra.Command {
   dws api POST /v1.0/calendar/users/me/calendars/primary/events \
     --data '{"summary":"Team Meeting","start":{"dateTime":"2026-01-01T10:00:00+08:00"}}'
 
-  # === 旧版 API (oapi.dingtalk.com) ===
+  # === oapi.dingtalk.com ===
 
-  # 获取用户详情 (旧版，使用 --base-url)
+  # 获取用户详情 (使用 --base-url)
   dws api POST /topapi/v2/user/get \
     --base-url https://oapi.dingtalk.com \
     --data '{"userid":"manager123"}'

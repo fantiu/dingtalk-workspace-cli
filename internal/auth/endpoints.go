@@ -297,9 +297,9 @@ func getRuntimeCredentials() (clientID, clientSecret string) {
 }
 
 // getEnvClientID returns the environment variable client ID if set.
-func getEnvClientID() string {
-	return os.Getenv("DWS_CLIENT_ID")
-}
+// func getEnvClientID() string {
+// 	return os.Getenv("DWS_CLIENT_ID")
+// }
 
 // getDefaultConfigDir returns the default configuration directory.
 // Priority: DWS_CONFIG_DIR env var > ~/.dws

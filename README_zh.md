@@ -281,7 +281,7 @@ curl -fsSL https://raw.githubusercontent.com/DingTalk-Real-AI/dingtalk-workspace
 
 `dws api` 让你直接调用任意钉钉 OpenAPI，无需 SDK，Token 自动获取和刷新。
 
-> **前置条件**：必须使用自有应用凭证登录（见[自建应用模式](#开始使用)）。通过 MCP 默认凭证登录的加密 token 不支持 raw API 调用。
+> **前置条件**：必须使用自有应用凭证登录（见[自建应用模式](#开始使用)）。通过 MCP 默认凭证登录 不支持 raw API 调用。
 
 ```bash
 # 登录（仅首次）
@@ -289,8 +289,8 @@ dws auth login --client-id <APP_KEY> --client-secret <APP_SECRET>
 
 # === api.dingtalk.com ===
 
-# 获取当前用户信息
-dws api GET /v1.0/contact/users/me
+# 获取企业所有应用列表
+dws api GET /v1.0/microApp/allApps
 
 # 搜索用户 (POST + JSON body)
 dws api POST /v1.0/contact/users/search \
@@ -301,16 +301,16 @@ dws api POST /v1.0/contact/users/search \
 # 获取用户详情（使用 --base-url 指定域名）
 dws api POST /topapi/v2/user/get \
   --base-url https://oapi.dingtalk.com \
-  --data '{"userid":"manager123"}'
+  --data '{"userid":"<USER_ID>"}'
 
 # 也可以直接使用完整 URL
 dws api POST https://oapi.dingtalk.com/topapi/v2/user/get \
-  --data '{"userid":"manager123"}'
+  --data '{"userid":"<USER_ID>"}'
 
 # === 通用功能 ===
-dws api GET /v1.0/attendance/groups --page-all   # 自动翻页
-dws api GET /v1.0/contact/users/me --dry-run     # 预览请求
-dws api GET /v1.0/contact/users/me --jq '.nick'  # jq 过滤
+dws api GET /v1.0/microApp/allApps --page-all   # 自动翻页
+dws api GET /v1.0/microApp/allApps --dry-run     # 预览请求
+dws api GET /v1.0/microApp/allApps --jq '.agentId'  # jq 过滤
 ```
 
 | 特性 | 说明 |
@@ -318,7 +318,7 @@ dws api GET /v1.0/contact/users/me --jq '.nick'  # jq 过滤
 | 双形态自动识别 | 根据 URL 自动选择 api.dingtalk.com（Header 认证）或 oapi.dingtalk.com（Query 参数认证） |
 | Token 自动管理 | 首次调用自动获取应用级 accessToken，有效期内缓存，过期自动刷新 |
 | 域名白名单 | 仅允许 `api.dingtalk.com` 和 `oapi.dingtalk.com`，防止 Token 泄露 |
-| 自动分页 | `--page-all` 自动遍历所有分页，`--page-limit` 控制上限 |
+| 自动分页 | `--page-all` 自动遍历所有分页。`--page-limit` 控制翻页上限（默认 10，设为 0 不限制，硬上限 500 防止死循环） |
 
 </details>
 
